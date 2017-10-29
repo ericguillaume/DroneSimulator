@@ -16,7 +16,8 @@ class Main:
     self.phiDriver_list = []
     self.thetaDriver_list = []
 
-    self.number_seconds = 50 # 18
+
+    self.number_seconds = 60 # 18
     self.max_number_steps = 100
     self.steps_per_second = 100
     self.dt = 1.0/self.steps_per_second
@@ -24,11 +25,11 @@ class Main:
     self.drone = Drone()
 
   def start(self):
-    self.xPositionDesired = 100.0
+    self.xPositionDesired = 200.0
     self.yPositionDesired = 0.0
     self.zPositionDesired = 0.0
-    self.phiD = 0.60
-    self.thetaD = 0.60 # 0.65 works fine for going up as well but we decide to limit at 0.55
+    self.phiD = 0.0 #0.60
+    self.thetaD = 0.0 #0.60 # 0.65 works fine for going up as well but we decide to limit at 0.55
     self.d_psiD = 0.0
 
     for i in range(self.number_seconds):
@@ -40,10 +41,11 @@ class Main:
     #plt.plot(self.time_list, self.theta_list, "o")
     #plt.plot(self.time_list, self.psi_list, "o")
     #self.plot_xy(plt)
-    #plt.plot(self.xy_time_list, self.x_list, "o")
+    plt.plot(self.xy_time_list, self.x_list, "o")
     #plt.plot(self.xy_time_list, self.y_list, "o")
     #plt.plot(self.time_list, self.z_list, "o")
-    plt.plot(self.time_list, self.phiDriver_list, "o")
+
+    #plt.plot(self.time_list, self.phiDriver_list, "o")
     #plt.plot(self.time_list, self.thetaDriver_list, "o")
     plt.show()
 

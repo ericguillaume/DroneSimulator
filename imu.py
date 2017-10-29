@@ -1,7 +1,10 @@
 from math import asin
 import numpy as np
 
+
 class IMU:
+
+  debug_nb_prints = 0
 
   def __init__(self):
     self.x = np.array([[1],[0],[0]])
@@ -15,6 +18,11 @@ class IMU:
     phi = asin(y_into_z)
     theta = asin(z_into_x)
     psi = asin(x_into_y)
+    if IMU.debug_nb_prints < 100:
+      print(phi, theta, psi)
+      IMU.debug_nb_prints += 1
+    else:
+      exit()
     return phi, theta, psi
 
 

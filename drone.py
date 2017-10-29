@@ -4,8 +4,18 @@ from attitude_controller import AttitudeController
 from pid import PID
 import math
 import numpy as np
+import random
+
+
+random.seed(80)
+
+
+
+MAX_THETA_PHI_RADIANS_COMMAND = 0.40
 
 class Drone:
+
+  debug_nb_prints = 0
 
   # engine 1 is the one on the left, 2 front, 3 right and 4 back in clockwise order
   def __init__(self):
@@ -40,9 +50,9 @@ class Drone:
     self.zKp = 0.01
     self.zKi = 0.01#0.005
     self.zKd = 0.0#0.5
-    self.phiThetaKp = 0.2
-    self.phiThetaKi = 0.001
-    self.phiThetaKd = 0.5
+    self.phiThetaKp = 0.2 # 0.2
+    self.phiThetaKi = 0.0 # 0.001
+    self.phiThetaKd = 0.5 # 0.5
     self.psiKp = 20.0
     self.psiKi = 0.5
     self.psiKd = 0.1 # on envoit une ligne plus pas du dip   alors que PID recoid PDI ?? retc...
@@ -51,8 +61,8 @@ class Drone:
     self.phiThetaDriverKd = 2.0
     self.phiThetaDriverKp = self.phiThetaDriverKd / 200
     self.phiThetaDriverKi = 0.0
-    self.phiDriverPID = PID('phi_driver',self.phiThetaDriverKp,self.phiThetaDriverKi,self.phiThetaDriverKd,0,dpositionD=0,counterForce=0)
-    self.thetaDriverPID = PID('theta_driver',self.phiThetaDriverKp,self.phiThetaDriverKi,self.phiThetaDriverKd,0,dpositionD=0,counterForce=0)
+    self.phiDriverPID = PID('phi_driver',self.phiThetaDriverKp,self.phiThetaDriverKd,self.phiThetaDriverKi,0,dpositionD=0,counterForce=0)
+    self.thetaDriverPID = PID('theta_driver',self.phiThetaDriverKp,self.phiThetaDriverKd,self.phiThetaDriverKi,0,dpositionD=0,counterForce=0)
 
   def get_accelerations(self):
     force1 = self.engine1.get_engine_force()
@@ -65,6 +75,12 @@ class Drone:
     d2_psi = self.G_raw * (force1+force3-force2-force4) #- self.kPsiRotationResistance*self.d_psi#*self.d_psi
     zforce_localc = self.G_force * (force1+force2+force3+force4)
     #print 'forces phi theta psi', d2_phi, d2_theta, d2_psi
+    if IMU.debug_nb_prints < 100:
+      print("___", force1, force2, force3, force4)
+      print("___", d2_phi, d2_theta, d2_psi, zforce_localc)
+      IMU.debug_nb_prints += 1
+    else:
+      exit()
     return d2_phi, d2_theta, d2_psi, zforce_localc
 
   def set_engines_speed(self,value):
@@ -95,8 +111,8 @@ class Drone:
     self.matrix_local_to_global = np.dot(self.matrix_local_to_global,changePhi)
     self.matrix_local_to_global = np.dot(self.matrix_local_to_global,changeTheta)
     self.matrix_local_to_global = np.dot(self.matrix_local_to_global,changePsi)
-    if comment:
-      print(self.matrix_local_to_global, "\n")
+    #if comment:
+    #  print(self.matrix_local_to_global, "\n")
 
     self.position = self.position + (dt * self.d_position)
     self.d_position = self.d_position + (dt * force_globalc)
@@ -120,6 +136,8 @@ class Drone:
 
   def update_driver(self,dt,xD,yD,zD): #LATER On it will be separated by timing from update_attitude
     globalPositionD = np.array([[xD],[yD],[1]])
+
+    # compute position desired relative to drone and store it in localPositionD
     cos_psi = math.cos(self.psi)
     sin_psi = math.sin(self.psi)
     psiRotation = np.array([[cos_psi,-sin_psi],[sin_psi,cos_psi]])
@@ -129,16 +147,20 @@ class Drone:
 
     xPositionD = float(localPositionD[0])
     yPositionD = float(localPositionD[1])
-    if xPositionD > math.sin(0.55)/math.cos(0.55)*1.0/self.kAirResistance/self.kAirResistance:
-      thetaD = 0.55
+    if xPositionD > math.sin(MAX_THETA_PHI_RADIANS_COMMAND)/math.cos(MAX_THETA_PHI_RADIANS_COMMAND)*1.0/self.kAirResistance/self.kAirResistance:
+      thetaD = MAX_THETA_PHI_RADIANS_COMMAND
     else:
-      thetaD = self.thetaDriverPID.get_command_update_target(0.0,dt,xPositionD,0,dPosition=self.theta)
-      print(xPositionD, self.theta, thetaD)
+      thetaD = self.thetaDriverPID.get_command_update_target(0.0,dt,xPositionD,0,dPosition=None) #self.theta)
+      if random.randint(0, 200) == 0:
+        thetaD = self.thetaDriverPID.get_command_update_target(0.0,dt,xPositionD,0,dPosition=None, debug=True) #self.theta)
+        print("xPositionD = {}, thetaD = {},   self.theta = {}, self.d_theta = {}".format(xPositionD, thetaD, self.theta, self.d_theta))
+        print()
+      #print(xPositionD, self.theta, thetaD)
     phiD = -self.phiDriverPID.get_command_update_target(0.0,dt,yPositionD,0,dPosition=None)
 
     # put aside this saturation ??
-    thetaD = max(min(thetaD,0.55),-0.55) # put aside 0.55 in constant
-    phiD = max(min(phiD,0.55),-0.55) # put aside 0.55 in constant
+    thetaD = max(min(thetaD,MAX_THETA_PHI_RADIANS_COMMAND),-MAX_THETA_PHI_RADIANS_COMMAND)
+    phiD = max(min(phiD,MAX_THETA_PHI_RADIANS_COMMAND),-MAX_THETA_PHI_RADIANS_COMMAND)
 
     d_psiD=0# set this value later on
 
